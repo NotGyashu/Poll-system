@@ -1,5 +1,5 @@
 import express, { Application } from 'express';
-import cors from 'cors';
+import { corsMiddleware } from './config/cors';
 import { errorHandler } from './middleware/errorHandler';
 import routes from './routes';
 
@@ -8,8 +8,8 @@ const app: Application = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS configuration 
-app.use(cors());
+// CORS configuration
+app.use(corsMiddleware);
 
 // API routes
 app.use('/api', routes);
