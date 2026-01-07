@@ -6,28 +6,33 @@ import routes from './routes';
 
 const app: Application = express();
 
-// Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// CORS configuration
 app.use(corsMiddleware);
 
 // Swagger docs
 app.use('/api-docs', swaggerServe, swaggerSetup);
 
+// Root route
+app.get('/', (_req, res) => {
+  res.json({
+    message: 'Poll System API',
+    version: '1.0.0',
+    docs: '/api-docs',
+    health: '/health',
+    api: '/api',
+  });
+});
+
+// Health check
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // API routes
 app.use('/api', routes);
 
-// Health check endpoint
-app.get('/health', (_req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// 404 handler for unmatched routes
 app.use(notFoundHandler);
-
-// Global error handler - must be last
 app.use(errorHandler);
 
 export default app;
