@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AppProvider } from './contexts';
 import { StudentPage, TeacherPage } from './pages';
+import { ErrorBoundary } from './components/shared';
 
 function HomePage() {
   return (
@@ -31,18 +32,20 @@ function HomePage() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <AppProvider>
-        <div className="min-h-screen bg-bg-light">
-          <Toaster position="top-right" />
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/teacher" element={<TeacherPage />} />
-            <Route path="/student" element={<StudentPage />} />
-          </Routes>
-        </div>
-      </AppProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AppProvider>
+          <div className="min-h-screen bg-bg-light">
+            <Toaster position="top-right" />
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/teacher" element={<TeacherPage />} />
+              <Route path="/student" element={<StudentPage />} />
+            </Routes>
+          </div>
+        </AppProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 
