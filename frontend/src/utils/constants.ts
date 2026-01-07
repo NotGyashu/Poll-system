@@ -9,6 +9,8 @@ export const DURATION_OPTIONS = [
   { value: 120, label: '120 seconds' },
 ];
 
+export const TIMER_OPTIONS = DURATION_OPTIONS;
+
 export const DEFAULT_DURATION = 60;
 export const MIN_OPTIONS = 2;
 export const MAX_OPTIONS = 6;
