@@ -62,10 +62,13 @@ export const usePollTimer = ({ initialTime, onTimerEnd }: UsePollTimerOptions) =
     }
   }, []);
 
+  const isLowTime = remainingTime <= 10 && remainingTime > 0;
+
   return {
     remainingTime,
     formattedTime: formatTime(remainingTime),
     isRunning,
+    isLowTime,
     start,
     stop,
     reset,
