@@ -1,8 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { studentService } from '../services/student.service';
-import { pollService } from '../services/poll.service';
-import { voteService } from '../services/vote.service';
-import { timerService } from '../services/timer.service';
+import { stateService } from '../services/state.service';
 
 export const studentHandler = (io: Server, socket: Socket) => {
   socket.on('student:join', async (data, callback) => {
@@ -13,30 +11,34 @@ export const studentHandler = (io: Server, socket: Socket) => {
       });
 
       await studentService.updateSocketId(student.id, socket.id);
-
-      const activePoll = await pollService.getActivePoll();
-      let results = null;
-      let remainingTime = 0;
-      let hasVoted = false;
-
-      if (activePoll) {
-        results = await voteService.getPollResults(activePoll.id);
-        remainingTime = timerService.getRemainingTime();
-        hasVoted = await voteService.hasVoted(activePoll.id, student.id);
-      }
+      const state = await stateService.getStudentState(student.id, null);
 
       io.emit('student:joined', { student });
       
       callback?.({
         success: true,
-        data: {
-          student,
-          activePoll,
-          results,
-          remainingTime,
-          hasVoted,
-        },
+        data: { ...state, student },
       });
+    } catch (err: any) {
+      callback?.({ success: false, error: err.message });
+    }
+  });
+
+  socket.on('student:reconnect', async (data, callback) => {
+    try {
+      const student = await studentService.getStudentBySessionId(data.sessionId);
+      
+      if (student) {
+        await studentService.updateSocketId(student.id, socket.id);
+        const state = await stateService.getStudentState(student.id, null);
+        
+        callback?.({
+          success: true,
+          data: { ...state, student },
+        });
+      } else {
+        callback?.({ success: false, error: 'Student not found' });
+      }
     } catch (err: any) {
       callback?.({ success: false, error: err.message });
     }
@@ -62,24 +64,20 @@ export const studentHandler = (io: Server, socket: Socket) => {
 
   socket.on('state:request', async (data, callback) => {
     try {
-      const activePoll = await pollService.getActivePoll();
-      let results = null;
-      let remainingTime = 0;
-      let hasVoted = false;
+      const state = await stateService.getStudentState(
+        data?.studentId || null,
+        data?.sessionId || null
+      );
+      callback?.({ success: true, data: state });
+    } catch (err: any) {
+      callback?.({ success: false, error: err.message });
+    }
+  });
 
-      if (activePoll) {
-        results = await voteService.getPollResults(activePoll.id);
-        remainingTime = timerService.getRemainingTime();
-        
-        if (data?.studentId) {
-          hasVoted = await voteService.hasVoted(activePoll.id, data.studentId);
-        }
-      }
-
-      callback?.({
-        success: true,
-        data: { activePoll, results, remainingTime, hasVoted },
-      });
+  socket.on('teacher:state', async (callback) => {
+    try {
+      const state = await stateService.getTeacherState();
+      callback?.({ success: true, data: state });
     } catch (err: any) {
       callback?.({ success: false, error: err.message });
     }
