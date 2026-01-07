@@ -9,6 +9,8 @@ export interface Message {
   created_at: string;
 }
 
+export type ChatMessage = Message;
+
 export interface SendMessageDTO {
   senderId?: string;
   senderName: string;
