@@ -3,6 +3,7 @@ import pollRoutes from './poll.routes';
 import voteRoutes from './vote.routes';
 import studentRoutes from './student.routes';
 import stateRoutes from './state.routes';
+import { healthCheck } from '../config/database';
 
 const router = Router();
 
@@ -15,7 +16,19 @@ router.get('/', (_req, res) => {
       votes: '/api/votes',
       students: '/api/students',
       state: '/api/state',
+      health: '/api/health',
     },
+  });
+});
+
+router.get('/health', async (_req, res) => {
+  const dbOk = await healthCheck();
+  const status = dbOk ? 'healthy' : 'degraded';
+  
+  res.status(dbOk ? 200 : 503).json({
+    status,
+    database: dbOk ? 'connected' : 'disconnected',
+    timestamp: new Date().toISOString(),
   });
 });
 

@@ -3,6 +3,7 @@ import { Server, Socket } from 'socket.io';
 import { pollHandler } from './poll.handler';
 import { voteHandler } from './vote.handler';
 import { studentHandler } from './student.handler';
+import { isDbConnected } from '../config/database';
 
 let io: Server;
 
@@ -23,6 +24,20 @@ const checkSocketRateLimit = (socketId: string, maxRequests: number = 30): boole
 
   limit.count++;
   return true;
+};
+
+const wrapHandler = (handler: (...args: any[]) => Promise<void>) => {
+  return async (...args: any[]) => {
+    try {
+      await handler(...args);
+    } catch (err: any) {
+      console.error('Socket handler error:', err.message);
+      const callback = args[args.length - 1];
+      if (typeof callback === 'function') {
+        callback({ success: false, error: 'Something went wrong' });
+      }
+    }
+  };
 };
 
 export const initializeSocket = (httpServer: HttpServer): Server => {
@@ -47,17 +62,32 @@ export const initializeSocket = (httpServer: HttpServer): Server => {
   io.on('connection', (socket: Socket) => {
     console.log(`Client connected: ${socket.id}`);
 
+    socket.on('error', (err) => {
+      console.error(`Socket error for ${socket.id}:`, err.message);
+    });
+
     const originalOn = socket.on.bind(socket);
     socket.on = ((event: string, listener: (...args: any[]) => void) => {
       return originalOn(event, (...args: any[]) => {
-        if (event !== 'disconnect' && !checkSocketRateLimit(socket.id)) {
-          const callback = args[args.length - 1];
-          if (typeof callback === 'function') {
-            callback({ success: false, error: 'Rate limit exceeded' });
+        if (event !== 'disconnect' && event !== 'error') {
+          if (!checkSocketRateLimit(socket.id)) {
+            const callback = args[args.length - 1];
+            if (typeof callback === 'function') {
+              callback({ success: false, error: 'Rate limit exceeded' });
+            }
+            return;
           }
-          return;
+          
+          if (!isDbConnected()) {
+            const callback = args[args.length - 1];
+            if (typeof callback === 'function') {
+              callback({ success: false, error: 'Service temporarily unavailable' });
+            }
+            return;
+          }
         }
-        listener(...args);
+        
+        wrapHandler(async () => listener(...args))();
       });
     }) as typeof socket.on;
 
@@ -65,10 +95,14 @@ export const initializeSocket = (httpServer: HttpServer): Server => {
     voteHandler(io, socket);
     studentHandler(io, socket);
 
-    socket.on('disconnect', () => {
-      console.log(`Client disconnected: ${socket.id}`);
+    socket.on('disconnect', (reason) => {
+      console.log(`Client disconnected: ${socket.id}, reason: ${reason}`);
       socketRateLimits.delete(socket.id);
     });
+  });
+
+  io.engine.on('connection_error', (err) => {
+    console.error('Connection error:', err.message);
   });
 
   return io;

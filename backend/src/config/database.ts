@@ -1,7 +1,6 @@
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import { config } from './index';
 
-// check if DATABASE_URL is set (for supabase)
 const connectionConfig = process.env.DATABASE_URL
   ? {
       connectionString: process.env.DATABASE_URL,
@@ -17,33 +16,64 @@ const connectionConfig = process.env.DATABASE_URL
 
 export const pool = new Pool(connectionConfig);
 
+let isConnected = false;
+
 pool.on('connect', () => {
-  console.log('Connected to database');
+  isConnected = true;
+  console.log('Database connected');
 });
 
 pool.on('error', (err) => {
-  console.error('Database error', err);
+  isConnected = false;
+  console.error('Database error:', err.message);
 });
 
-// run a query
-export const query = async (text: string, params?: any[]) => {
-  try {
-    const result = await pool.query(text, params);
-    return result;
-  } catch (err) {
-    console.error('Query error:', err);
-    throw err;
+export const query = async (text: string, params?: any[], retries = 3): Promise<any> => {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const result = await pool.query(text, params);
+      return result;
+    } catch (err: any) {
+      console.error(`Query attempt ${attempt} failed:`, err.message);
+      
+      if (attempt === retries) {
+        throw new Error('Database temporarily unavailable');
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+    }
   }
 };
 
-// get a client for transactions
-export const getClient = async () => {
-  const client = await pool.connect();
-  return client;
+export const getClient = async (retries = 3): Promise<PoolClient> => {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const client = await pool.connect();
+      return client;
+    } catch (err: any) {
+      console.error(`Connection attempt ${attempt} failed:`, err.message);
+      
+      if (attempt === retries) {
+        throw new Error('Database temporarily unavailable');
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+    }
+  }
+  throw new Error('Database temporarily unavailable');
 };
 
-export default {
-  pool,
-  query,
-  getClient,
+export const isDbConnected = (): boolean => isConnected;
+
+export const healthCheck = async (): Promise<boolean> => {
+  try {
+    await pool.query('SELECT 1');
+    isConnected = true;
+    return true;
+  } catch {
+    isConnected = false;
+    return false;
+  }
 };
+
+export default { pool, query, getClient, isDbConnected, healthCheck };
