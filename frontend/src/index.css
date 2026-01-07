@@ -1,6 +1,14 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #7765DA;
+  --color-secondary: #5767D0;
+  --color-accent: #4F0DCE;
+  --color-bg-light: #F2F2F2;
+  --color-text-dark: #373737;
+  --color-text-gray: #6E6E6E;
+  --color-timer-red: #DC2626;
+}
 
 * {
   margin: 0;
