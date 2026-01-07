@@ -1,6 +1,7 @@
 import express, { Application } from 'express';
 import { corsMiddleware } from './config/cors';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { swaggerServe, swaggerSetup } from './config/swagger';
 import routes from './routes';
 
 const app: Application = express();
@@ -11,6 +12,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // CORS configuration
 app.use(corsMiddleware);
+
+// Swagger docs
+app.use('/api-docs', swaggerServe, swaggerSetup);
 
 // API routes
 app.use('/api', routes);

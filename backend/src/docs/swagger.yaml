@@ -1,0 +1,477 @@
+openapi: 3.0.0
+info:
+  title: Poll System API
+  version: 1.0.0
+  description: API for Resilient Live Polling System
+
+servers:
+  - url: http://localhost:5000
+    description: Development server
+
+tags:
+  - name: Polls
+    description: Poll operations
+  - name: Votes
+    description: Vote operations
+  - name: Students
+    description: Student operations
+  - name: State
+    description: System state operations
+
+paths:
+  /api:
+    get:
+      summary: API info
+      description: Get API information and available endpoints
+      responses:
+        '200':
+          description: API info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  version:
+                    type: string
+                  endpoints:
+                    type: object
+
+  /api/polls:
+    get:
+      tags:
+        - Polls
+      summary: Get all polls
+      description: Returns list of all polls
+      responses:
+        '200':
+          description: List of polls
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Poll'
+    post:
+      tags:
+        - Polls
+      summary: Create a new poll
+      description: Create a poll with question and options
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePollDTO'
+      responses:
+        '201':
+          description: Poll created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/PollWithOptions'
+        '400':
+          description: Bad request
+
+  /api/polls/active:
+    get:
+      tags:
+        - Polls
+      summary: Get active poll
+      description: Returns the currently active poll if any
+      responses:
+        '200':
+          description: Active poll or null
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/PollWithOptions'
+
+  /api/polls/history:
+    get:
+      tags:
+        - Polls
+      summary: Get poll history
+      description: Returns list of completed polls
+      responses:
+        '200':
+          description: List of completed polls
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Poll'
+
+  /api/polls/{id}:
+    get:
+      tags:
+        - Polls
+      summary: Get poll by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Poll details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/PollWithOptions'
+        '404':
+          description: Poll not found
+
+  /api/polls/{id}/start:
+    patch:
+      tags:
+        - Polls
+      summary: Start a poll
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Poll started
+        '400':
+          description: Another poll is already active
+        '404':
+          description: Poll not found
+
+  /api/polls/{id}/end:
+    patch:
+      tags:
+        - Polls
+      summary: End a poll
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Poll ended
+        '404':
+          description: Poll not found
+
+  /api/polls/{id}/results:
+    get:
+      tags:
+        - Votes
+      summary: Get poll results
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Poll results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/PollResults'
+        '404':
+          description: Poll not found
+
+  /api/votes:
+    post:
+      tags:
+        - Votes
+      summary: Submit a vote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVoteDTO'
+      responses:
+        '201':
+          description: Vote submitted
+        '400':
+          description: Invalid vote or already voted
+        '404':
+          description: Poll or option not found
+
+  /api/students/register:
+    post:
+      tags:
+        - Students
+      summary: Register a student
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - session_id
+              properties:
+                name:
+                  type: string
+                session_id:
+                  type: string
+      responses:
+        '201':
+          description: Student registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Student'
+
+  /api/students:
+    get:
+      tags:
+        - Students
+      summary: Get all students
+      description: Teacher only - get list of all students
+      responses:
+        '200':
+          description: List of students
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Student'
+
+  /api/students/{id}:
+    delete:
+      tags:
+        - Students
+      summary: Remove a student
+      description: Teacher only - remove a student
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Student removed
+        '404':
+          description: Student not found
+
+  /api/state/current:
+    get:
+      tags:
+        - State
+      summary: Get current state
+      description: Get current system state for recovery
+      responses:
+        '200':
+          description: Current state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      activePoll:
+                        $ref: '#/components/schemas/PollWithOptions'
+                      results:
+                        $ref: '#/components/schemas/PollResults'
+                      remainingTime:
+                        type: integer
+
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  timestamp:
+                    type: string
+
+components:
+  schemas:
+    Poll:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        question:
+          type: string
+        duration:
+          type: integer
+        status:
+          type: string
+          enum: [pending, active, completed]
+        started_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    Option:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        poll_id:
+          type: string
+          format: uuid
+        text:
+          type: string
+        display_order:
+          type: integer
+
+    PollWithOptions:
+      allOf:
+        - $ref: '#/components/schemas/Poll'
+        - type: object
+          properties:
+            options:
+              type: array
+              items:
+                $ref: '#/components/schemas/Option'
+
+    CreatePollDTO:
+      type: object
+      required:
+        - question
+        - options
+      properties:
+        question:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+          minItems: 2
+        duration:
+          type: integer
+          default: 60
+
+    CreateVoteDTO:
+      type: object
+      required:
+        - poll_id
+        - option_id
+        - student_id
+      properties:
+        poll_id:
+          type: string
+          format: uuid
+        option_id:
+          type: string
+          format: uuid
+        student_id:
+          type: string
+          format: uuid
+
+    VoteCount:
+      type: object
+      properties:
+        option_id:
+          type: string
+        option_text:
+          type: string
+        count:
+          type: integer
+        percentage:
+          type: integer
+
+    PollResults:
+      type: object
+      properties:
+        poll_id:
+          type: string
+        question:
+          type: string
+        total_votes:
+          type: integer
+        votes:
+          type: array
+          items:
+            $ref: '#/components/schemas/VoteCount'
+
+    Student:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        session_id:
+          type: string
+        socket_id:
+          type: string
+        is_online:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
