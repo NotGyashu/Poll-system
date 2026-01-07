@@ -9,17 +9,17 @@ const httpServer = createServer(app);
 const io = initializeSocket(httpServer);
 
 pool.query('SELECT NOW()')
-  .then(() => {
-    console.log('Database connected');
-  })
-  .catch((err) => {
-    console.error('Database connection failed:', err.message);
-  });
+  .then(() => console.log('Database connected'))
+  .catch((err) => console.error('Database connection failed:', err.message));
 
 timerService.setOnTimerEnd(async (pollId) => {
   const { voteService } = await import('./services/vote.service');
   const results = await voteService.getPollResults(pollId);
   io.emit('poll:ended', { pollId, results });
+});
+
+timerService.setOnTimerTick((pollId, remaining) => {
+  io.emit('timer:sync', { pollId, remaining });
 });
 
 timerService.restoreTimer().catch(console.error);
@@ -31,9 +31,7 @@ httpServer.listen(config.port, () => {
 
 process.on('SIGINT', () => {
   console.log('Shutting down...');
-  httpServer.close(() => {
-    process.exit(0);
-  });
+  httpServer.close(() => process.exit(0));
 });
 
 export default httpServer;
