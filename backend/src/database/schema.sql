@@ -47,39 +47,8 @@ CREATE TABLE IF NOT EXISTS votes (
     CONSTRAINT unique_vote_per_poll UNIQUE (poll_id, student_id)
 );
 
--- Index for faster poll lookups by status
+-- Index for poll status lookup
 CREATE INDEX IF NOT EXISTS idx_polls_status ON polls(status);
 
--- Index for faster option lookups by poll
-CREATE INDEX IF NOT EXISTS idx_options_poll_id ON options(poll_id);
-
--- Index for faster vote lookups
+-- Index for votes by poll
 CREATE INDEX IF NOT EXISTS idx_votes_poll_id ON votes(poll_id);
-CREATE INDEX IF NOT EXISTS idx_votes_option_id ON votes(option_id);
-CREATE INDEX IF NOT EXISTS idx_votes_student_id ON votes(student_id);
-
--- Index for student session lookup
-CREATE INDEX IF NOT EXISTS idx_students_session_id ON students(session_id);
-
--- Function to update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
--- Trigger for students table
-DROP TRIGGER IF EXISTS update_students_updated_at ON students;
-CREATE TRIGGER update_students_updated_at
-    BEFORE UPDATE ON students
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
--- Trigger for polls table
-DROP TRIGGER IF EXISTS update_polls_updated_at ON polls;
-CREATE TRIGGER update_polls_updated_at
-    BEFORE UPDATE ON polls
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();

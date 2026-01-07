@@ -1,9 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 
-/**
- * Wrapper for async route handlers to catch errors
- * and pass them to the error handling middleware
- */
+// wrapper for async route handlers
 export const asyncHandler = (
   fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
 ) => {

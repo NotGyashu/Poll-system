@@ -1,16 +1,11 @@
-import { Pool, PoolConfig, QueryResult, QueryResultRow } from 'pg';
+import { Pool } from 'pg';
 import { config } from './index';
 
-// Build pool config - use DATABASE_URL if available (Supabase), otherwise use individual vars
-const poolConfig: PoolConfig = config.database.url
+// check if DATABASE_URL is set (for supabase)
+const connectionConfig = process.env.DATABASE_URL
   ? {
-      connectionString: config.database.url,
-      ssl: {
-        rejectUnauthorized: false, // Required for Supabase
-      },
-      max: 20,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 10000,
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
     }
   : {
       host: config.database.host,
@@ -18,81 +13,37 @@ const poolConfig: PoolConfig = config.database.url
       database: config.database.name,
       user: config.database.user,
       password: config.database.password,
-      max: 20, // Maximum number of clients in the pool
-      idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-      connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
     };
 
-export const pool = new Pool(poolConfig);
+export const pool = new Pool(connectionConfig);
 
-// Test database connection
 pool.on('connect', () => {
-  const dbType = config.database.url ? 'Supabase' : 'Local PostgreSQL';
-  console.log(`📦 Connected to ${dbType} database`);
+  console.log('Connected to database');
 });
 
 pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
+  console.error('Database error', err);
 });
 
-/**
- * Execute a query with optional parameters
- */
-export const query = async <T extends QueryResultRow>(
-  text: string,
-  params?: unknown[]
-): Promise<QueryResult<T>> => {
-  const start = Date.now();
+// run a query
+export const query = async (text: string, params?: any[]) => {
   try {
-    const result = await pool.query<T>(text, params);
-    const duration = Date.now() - start;
-    if (config.nodeEnv === 'development') {
-      console.log('Executed query', { 
-        text: text.substring(0, 50), 
-        duration, 
-        rows: result.rowCount 
-      });
-    }
+    const result = await pool.query(text, params);
     return result;
-  } catch (error) {
-    console.error('Database query error:', error);
-    throw error;
+  } catch (err) {
+    console.error('Query error:', err);
+    throw err;
   }
 };
 
-/**
- * Get a client from the pool for transactions
- */
+// get a client for transactions
 export const getClient = async () => {
   const client = await pool.connect();
   return client;
-};
-
-/**
- * Test database connection
- */
-export const testConnection = async (): Promise<boolean> => {
-  try {
-    await pool.query('SELECT NOW()');
-    return true;
-  } catch (error) {
-    console.error('Database connection test failed:', error);
-    return false;
-  }
-};
-
-/**
- * Close all database connections
- */
-export const closePool = async (): Promise<void> => {
-  await pool.end();
-  console.log('📦 Database pool closed');
 };
 
 export default {
   pool,
   query,
   getClient,
-  testConnection,
-  closePool,
 };
