@@ -1,8 +1,11 @@
 import { Router } from 'express';
+import pollRoutes from './poll.routes';
+import voteRoutes from './vote.routes';
+import studentRoutes from './student.routes';
+import stateRoutes from './state.routes';
 
 const router = Router();
 
-// Placeholder routes
 router.get('/', (_req, res) => {
   res.json({
     message: 'Poll System API',
@@ -15,5 +18,10 @@ router.get('/', (_req, res) => {
     },
   });
 });
+
+router.use('/polls', pollRoutes);
+router.use('/votes', voteRoutes);
+router.use('/students', studentRoutes);
+router.use('/state', stateRoutes);
 
 export default router;
