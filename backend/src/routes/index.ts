@@ -3,6 +3,7 @@ import pollRoutes from './poll.routes';
 import voteRoutes from './vote.routes';
 import studentRoutes from './student.routes';
 import stateRoutes from './state.routes';
+import chatRoutes from './chat.routes';
 import { healthCheck } from '../config/database';
 
 const router = Router();
@@ -16,6 +17,7 @@ router.get('/', (_req, res) => {
       votes: '/api/votes',
       students: '/api/students',
       state: '/api/state',
+      chat: '/api/chat',
       health: '/api/health',
     },
   });
@@ -36,5 +38,6 @@ router.use('/polls', pollRoutes);
 router.use('/votes', voteRoutes);
 router.use('/students', studentRoutes);
 router.use('/state', stateRoutes);
+router.use('/chat', chatRoutes);
 
 export default router;

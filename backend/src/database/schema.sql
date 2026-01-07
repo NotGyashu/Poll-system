@@ -52,3 +52,19 @@ CREATE INDEX IF NOT EXISTS idx_polls_status ON polls(status);
 
 -- Index for votes by poll
 CREATE INDEX IF NOT EXISTS idx_votes_poll_id ON votes(poll_id);
+
+-- Sender type enum for chat
+CREATE TYPE sender_type AS ENUM ('teacher', 'student');
+
+-- Messages table for chat feature
+CREATE TABLE IF NOT EXISTS messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    sender_id UUID REFERENCES students(id) ON DELETE SET NULL,
+    sender_name VARCHAR(100) NOT NULL,
+    sender_type sender_type NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index for chat message retrieval
+CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);

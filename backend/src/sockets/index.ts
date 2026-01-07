@@ -3,7 +3,9 @@ import { Server, Socket } from 'socket.io';
 import { pollHandler } from './poll.handler';
 import { voteHandler } from './vote.handler';
 import { studentHandler } from './student.handler';
+import { chatHandler } from './chat.handler';
 import { isDbConnected } from '../config/database';
+import { studentService } from '../services/student.service';
 
 let io: Server;
 
@@ -94,6 +96,28 @@ export const initializeSocket = (httpServer: HttpServer): Server => {
     pollHandler(io, socket);
     voteHandler(io, socket);
     studentHandler(io, socket);
+    chatHandler(io, socket);
+
+    // Teacher kick student
+    socket.on('student:kick', async (data, callback) => {
+      try {
+        const student = await studentService.getStudentById(data.studentId);
+        
+        if (student && student.socket_id) {
+          // notify the kicked student
+          io.to(student.socket_id).emit('student:kicked', {
+            studentId: data.studentId,
+            reason: data.reason || 'Removed by teacher',
+          });
+        }
+
+        await studentService.removeStudent(data.studentId);
+        io.emit('student:removed', { studentId: data.studentId });
+        callback?.({ success: true });
+      } catch (err: any) {
+        callback?.({ success: false, error: err.message });
+      }
+    });
 
     socket.on('disconnect', (reason) => {
       console.log(`Client disconnected: ${socket.id}, reason: ${reason}`);
