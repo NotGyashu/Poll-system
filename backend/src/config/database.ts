@@ -1,22 +1,34 @@
 import { Pool, PoolConfig, QueryResult, QueryResultRow } from 'pg';
 import { config } from './index';
 
-const poolConfig: PoolConfig = {
-  host: config.database.host,
-  port: config.database.port,
-  database: config.database.name,
-  user: config.database.user,
-  password: config.database.password,
-  max: 20, // Maximum number of clients in the pool
-  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
-};
+// Build pool config - use DATABASE_URL if available (Supabase), otherwise use individual vars
+const poolConfig: PoolConfig = config.database.url
+  ? {
+      connectionString: config.database.url,
+      ssl: {
+        rejectUnauthorized: false, // Required for Supabase
+      },
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+    }
+  : {
+      host: config.database.host,
+      port: config.database.port,
+      database: config.database.name,
+      user: config.database.user,
+      password: config.database.password,
+      max: 20, // Maximum number of clients in the pool
+      idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+      connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
+    };
 
 export const pool = new Pool(poolConfig);
 
 // Test database connection
 pool.on('connect', () => {
-  console.log('📦 Connected to PostgreSQL database');
+  const dbType = config.database.url ? 'Supabase' : 'Local PostgreSQL';
+  console.log(`📦 Connected to ${dbType} database`);
 });
 
 pool.on('error', (err) => {
@@ -35,7 +47,11 @@ export const query = async <T extends QueryResultRow>(
     const result = await pool.query<T>(text, params);
     const duration = Date.now() - start;
     if (config.nodeEnv === 'development') {
-      console.log('Executed query', { text: text.substring(0, 50), duration, rows: result.rowCount });
+      console.log('Executed query', { 
+        text: text.substring(0, 50), 
+        duration, 
+        rows: result.rowCount 
+      });
     }
     return result;
   } catch (error) {
