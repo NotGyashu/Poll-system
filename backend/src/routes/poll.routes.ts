@@ -8,15 +8,16 @@ import {
   endPoll,
   getPollHistory,
 } from '../controllers/poll.controller';
+import { validatePollCreate, validateUUID } from '../middleware/validation';
 
 const router = Router();
 
-router.post('/', createPoll);
+router.post('/', validatePollCreate, createPoll);
 router.get('/', getAllPolls);
 router.get('/active', getActivePoll);
 router.get('/history', getPollHistory);
-router.get('/:id', getPollById);
-router.patch('/:id/start', startPoll);
-router.patch('/:id/end', endPoll);
+router.get('/:id', validateUUID('id'), getPollById);
+router.patch('/:id/start', validateUUID('id'), startPoll);
+router.patch('/:id/end', validateUUID('id'), endPoll);
 
 export default router;

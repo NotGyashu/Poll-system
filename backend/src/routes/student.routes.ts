@@ -6,13 +6,15 @@ import {
   removeStudent,
   getStudentById,
 } from '../controllers/student.controller';
+import { validateStudentRegister, validateUUID } from '../middleware/validation';
+import { authLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
-router.post('/register', registerStudent);
+router.post('/register', authLimiter, validateStudentRegister, registerStudent);
 router.get('/', getAllStudents);
 router.get('/online', getOnlineStudents);
-router.get('/:id', getStudentById);
-router.delete('/:id', removeStudent);
+router.get('/:id', validateUUID('id'), getStudentById);
+router.delete('/:id', validateUUID('id'), removeStudent);
 
 export default router;
