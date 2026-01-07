@@ -1,8 +1,19 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Poll status enum
-CREATE TYPE poll_status AS ENUM ('pending', 'active', 'completed');
+-- Poll status enum (skip if exists)
+DO $$ BEGIN
+    CREATE TYPE poll_status AS ENUM ('pending', 'active', 'completed');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- Sender type enum (skip if exists)
+DO $$ BEGIN
+    CREATE TYPE sender_type AS ENUM ('teacher', 'student');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Students table
 CREATE TABLE IF NOT EXISTS students (
@@ -43,20 +54,10 @@ CREATE TABLE IF NOT EXISTS votes (
     option_id UUID NOT NULL REFERENCES options(id) ON DELETE CASCADE,
     student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    -- Ensure one vote per student per poll
     CONSTRAINT unique_vote_per_poll UNIQUE (poll_id, student_id)
 );
 
--- Index for poll status lookup
-CREATE INDEX IF NOT EXISTS idx_polls_status ON polls(status);
-
--- Index for votes by poll
-CREATE INDEX IF NOT EXISTS idx_votes_poll_id ON votes(poll_id);
-
--- Sender type enum for chat
-CREATE TYPE sender_type AS ENUM ('teacher', 'student');
-
--- Messages table for chat feature
+-- Messages table for chat
 CREATE TABLE IF NOT EXISTS messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     sender_id UUID REFERENCES students(id) ON DELETE SET NULL,
@@ -66,5 +67,7 @@ CREATE TABLE IF NOT EXISTS messages (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Index for chat message retrieval
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_polls_status ON polls(status);
+CREATE INDEX IF NOT EXISTS idx_votes_poll_id ON votes(poll_id);
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);
