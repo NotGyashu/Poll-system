@@ -16,12 +16,12 @@ export class OptionModel {
     return result.rows;
   }
 
-  static async create(pollId: string, text: string, order: number): Promise<Option> {
+  static async create(pollId: string, text: string, order: number, isCorrect: boolean = false): Promise<Option> {
     const result = await query(
-      `INSERT INTO options (poll_id, text, display_order)
-       VALUES ($1, $2, $3)
+      `INSERT INTO options (poll_id, text, display_order, is_correct)
+       VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [pollId, text, order]
+      [pollId, text, order, isCorrect]
     );
     return result.rows[0];
   }
@@ -30,7 +30,6 @@ export class OptionModel {
     await query('DELETE FROM options WHERE poll_id = $1', [pollId]);
   }
 
-  // check if option belongs to poll
   static async belongsToPoll(optionId: string, pollId: string): Promise<boolean> {
     const result = await query(
       'SELECT COUNT(*) as count FROM options WHERE id = $1 AND poll_id = $2',

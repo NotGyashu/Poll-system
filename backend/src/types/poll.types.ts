@@ -11,9 +11,14 @@ export interface Poll {
   updated_at: Date;
 }
 
+export interface CreateOptionDTO {
+  text: string;
+  is_correct?: boolean;
+}
+
 export interface CreatePollDTO {
   question: string;
-  options: string[];
+  options: CreateOptionDTO[] | string[];
   duration?: number;
 }
 
@@ -26,6 +31,7 @@ export interface Option {
   poll_id: string;
   text: string;
   display_order: number;
+  is_correct: boolean;
   created_at: Date;
 }
 

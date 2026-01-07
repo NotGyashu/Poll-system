@@ -71,3 +71,5 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE INDEX IF NOT EXISTS idx_polls_status ON polls(status);
 CREATE INDEX IF NOT EXISTS idx_votes_poll_id ON votes(poll_id);
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);
+-- Add is_correct column to options (run if not exists)
+-- ALTER TABLE options ADD COLUMN IF NOT EXISTS is_correct BOOLEAN DEFAULT false;

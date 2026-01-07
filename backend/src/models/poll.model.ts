@@ -1,5 +1,5 @@
 import { query } from '../config/database';
-import { Poll, PollStatus, CreatePollDTO, PollWithOptions, Option } from '../types/poll.types';
+import { Poll, PollStatus, CreatePollDTO, PollWithOptions, Option, CreateOptionDTO } from '../types/poll.types';
 
 export class PollModel {
 
@@ -9,7 +9,6 @@ export class PollModel {
     try {
       await client.query('BEGIN');
 
-      // insert poll
       const pollResult = await client.query(
         `INSERT INTO polls (question, duration, status)
          VALUES ($1, $2, 'pending')
@@ -18,21 +17,24 @@ export class PollModel {
       );
 
       const poll = pollResult.rows[0];
-
-      // insert options
       const opts: Option[] = [];
+
       for (let i = 0; i < data.options.length; i++) {
+        const opt = data.options[i];
+        const isObject = typeof opt === 'object';
+        const text = isObject ? (opt as CreateOptionDTO).text : opt;
+        const isCorrect = isObject ? (opt as CreateOptionDTO).is_correct || false : false;
+
         const optResult = await client.query(
-          `INSERT INTO options (poll_id, text, display_order)
-           VALUES ($1, $2, $3)
+          `INSERT INTO options (poll_id, text, display_order, is_correct)
+           VALUES ($1, $2, $3, $4)
            RETURNING *`,
-          [poll.id, data.options[i], i]
+          [poll.id, text, i, isCorrect]
         );
         opts.push(optResult.rows[0]);
       }
 
       await client.query('COMMIT');
-
       return { ...poll, options: opts };
     } catch (error) {
       await client.query('ROLLBACK');
