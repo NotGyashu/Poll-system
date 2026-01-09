@@ -214,7 +214,7 @@ const TeacherPageContent = () => {
 
   const handleSendMessage = (content: string) => {
     emit(SOCKET_EVENTS.CHAT_SEND, {
-      senderId: 'teacher',
+      // senderId omitted for teacher so backend stores NULL
       senderName: 'Teacher',
       senderType: 'teacher',
       content,

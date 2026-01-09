@@ -96,13 +96,17 @@ export const ChatPanel = ({
                 {messages.length === 0 ? (
                   <p className="text-center text-gray-400 text-sm">No messages yet</p>
                 ) : (
-                  messages.map((message) => (
-                    <ChatMessage
-                      key={message.id}
-                      message={message}
-                      isOwnMessage={message.sender_id === currentUserId}
-                    />
-                  ))
+                  messages.map((message) => {
+                    // Fix: treat teacher's own messages as 'own' if currentUserId is 'teacher' and sender_type is 'teacher'
+                    const isOwn = message.sender_id === currentUserId || (currentUserId === 'teacher' && message.sender_type === 'teacher');
+                    return (
+                      <ChatMessage
+                        key={message.id}
+                        message={message}
+                        isOwnMessage={isOwn}
+                      />
+                    );
+                  })
                 )}
                 <div ref={messagesEndRef} />
               </div>
@@ -113,7 +117,6 @@ export const ChatPanel = ({
               </div>
             </>
           ) : (
-            /* Participants Tab */
             <div className="flex-1 overflow-y-auto">
               {participants.length === 0 ? (
                 <p className="text-center text-gray-400 text-sm py-8">No participants yet</p>
