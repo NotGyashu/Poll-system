@@ -4,10 +4,10 @@ import type { StudentState, TeacherState } from '../types';
 export const stateApi = {
   getStudentState: async (studentId?: string, sessionId?: string): Promise<StudentState> => {
     const params = new URLSearchParams();
-    if (studentId) params.append('studentId', studentId);
-    if (sessionId) params.append('sessionId', sessionId);
+    if (studentId) params.append('student_id', studentId);
+    if (sessionId) params.append('session_id', sessionId);
     
-    const { data } = await api.get(`/state/student?${params.toString()}`);
+    const { data } = await api.get(`/state/current?${params.toString()}`);
     return data.data;
   },
 

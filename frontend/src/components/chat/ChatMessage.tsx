@@ -6,39 +6,25 @@ interface ChatMessageProps {
 }
 
 export const ChatMessage = ({ message, isOwnMessage = false }: ChatMessageProps) => {
-  const formatTime = (dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
   const isTeacher = message.sender_type === 'teacher';
 
   return (
-    <div className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'}`}>
+      {/* Sender Name */}
+      <span className={`text-sm font-medium mb-1 ${isTeacher ? 'text-primary' : 'text-primary'}`}>
+        {message.sender_name}
+        {isTeacher && ' (Teacher)'}
+      </span>
+      
+      {/* Message Bubble */}
       <div
-        className={`max-w-[75%] rounded-2xl px-4 py-2 ${
+        className={`max-w-[75%] text-base px-3 py-2 ${
           isOwnMessage
-            ? 'bg-primary text-white rounded-br-md'
-            : isTeacher
-            ? 'bg-accent/10 text-gray-800 rounded-bl-md border border-accent/20'
-            : 'bg-gray-100 text-gray-800 rounded-bl-md'
+            ? 'bg-primary text-white rounded-xl rounded-tr-none'
+            : 'bg-[#3A3A3B] text-white rounded-xl rounded-tl-none'
         }`}
       >
-        {!isOwnMessage && (
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`text-xs font-medium ${isTeacher ? 'text-accent' : 'text-gray-600'}`}>
-              {message.sender_name}
-              {isTeacher && ' (Teacher)'}
-            </span>
-          </div>
-        )}
         <p className="text-sm break-words">{message.content}</p>
-        <span className={`text-xs mt-1 block ${isOwnMessage ? 'text-white/70' : 'text-gray-500'}`}>
-          {formatTime(message.created_at)}
-        </span>
       </div>
     </div>
   );

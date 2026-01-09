@@ -1,4 +1,3 @@
-import { OptionCard, Button } from '../shared';
 import type { Poll, Option, PollResults } from '../../types';
 
 interface ResultsViewProps {
@@ -14,7 +13,6 @@ export const ResultsView = ({
   options,
   results,
   selectedOptionId,
-  onNextPoll,
 }: ResultsViewProps) => {
   const totalVotes = results.total_votes;
   
@@ -23,62 +21,69 @@ export const ResultsView = ({
     return result?.vote_count || 0;
   };
 
-  const getIsCorrect = (option: Option): boolean => {
-    return option.is_correct === true;
+  const getPercentage = (optionId: string): number => {
+    if (totalVotes === 0) return 0;
+    return Math.round((getVoteCount(optionId) / totalVotes) * 100);
   };
 
-  const selectedOption = options.find((o) => o.id === selectedOptionId);
-  const wasCorrect = selectedOption?.is_correct === true;
-
   return (
-    <div className="min-h-screen bg-bg-light p-4">
+    <div className="min-h-screen bg-white p-4">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-4">
-          <div className="flex items-center gap-2 mb-4">
-            <h1 className="text-xl font-bold text-gray-800">Results</h1>
-            {selectedOptionId && (
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                wasCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-              }`}>
-                {wasCorrect ? '✓ Correct!' : '✗ Incorrect'}
-              </span>
-            )}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <span className="text-lg font-semibold text-gray-800">Question</span>
+          </div>
+        </div>
+
+        {/* Poll Card with Results */}
+        <div className="bg-white rounded-lg border border-primary overflow-hidden mb-6">
+          {/* Dark header */}
+          <div className="question-gradient px-4 py-3 mb-3">
+            <h2 className="text-white text-lg font-medium">{poll.question}</h2>
           </div>
           
-          <h2 className="text-lg text-gray-700">{poll.question}</h2>
-        </div>
-
-        {/* Results */}
-        <div className="space-y-3 mb-6">
-          {options.map((option) => (
-            <OptionCard
-              key={option.id}
-              option={option}
-              isSelected={selectedOptionId === option.id}
-              showResults={true}
-              voteCount={getVoteCount(option.id)}
-              totalVotes={totalVotes}
-              isCorrect={getIsCorrect(option)}
-            />
-          ))}
-        </div>
-
-        {/* Stats */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-4">
-          <div className="flex justify-around text-center">
-            <div>
-              <div className="text-2xl font-bold text-primary">{totalVotes}</div>
-              <div className="text-sm text-gray-600">Total Votes</div>
-            </div>
+          {/* Results Options */}
+          <div className="p-4 space-y-3">
+            {options.map((option, index) => {
+              const percentage = getPercentage(option.id);
+              const isSelected = selectedOptionId === option.id;
+              
+              return (
+                <div
+                  key={option.id}
+                  className={`relative flex items-center bg-gray-100 rounded-xl overflow-visible h-14 `}
+                >
+                  {/* Progress bar background */}
+                  <div 
+                    className="absolute inset-0 bg-primary transition-all rounded-xl"
+                    style={{ width: `${percentage}%` }}
+                  />
+                  
+                  {/* Numbered circle */}
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-semibold z-10 ml-2 ${percentage > 5 ? 'bg-white text-primary' : 'bg-primary text-white'}`}>
+                    {index + 1}
+                  </div>
+                  
+                  {/* Content */}
+                  <div className="relative flex items-center w-full pl-4 pr-4 py-3">
+                    <span className={`flex-1 font-medium ${percentage > 10 ? 'text-white' : 'text-gray-800'}`}>
+                      {option.text}
+                    </span>
+                    <span className={`font-semibold ${percentage > 90 ? 'text-white' : 'text-gray-700'}`}>
+                      {percentage}%
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {onNextPoll && (
-          <Button onClick={onNextPoll} className="w-full" size="lg">
-            Continue
-          </Button>
-        )}
+        {/* Waiting Message */}
+        <div className="text-center text-gray-800 font-semibold text-lg">
+          Wait for the teacher to ask a new question..
+        </div>
       </div>
     </div>
   );

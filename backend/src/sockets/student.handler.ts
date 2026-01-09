@@ -1,6 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { studentService } from '../services/student.service';
 import { stateService } from '../services/state.service';
+import { presenceManager } from '../services/presence.service';
 
 export const studentHandler = (io: Server, socket: Socket) => {
   socket.on('student:join', async (data, callback) => {
@@ -10,7 +11,9 @@ export const studentHandler = (io: Server, socket: Socket) => {
         session_id: data.sessionId,
       });
 
-      await studentService.updateSocketId(student.id, socket.id);
+      // Add to presence manager (socket-based tracking)
+      presenceManager.addUser(student, socket.id);
+      
       const state = await stateService.getStudentState(student.id, null);
 
       io.emit('student:joined', { student });
@@ -29,7 +32,9 @@ export const studentHandler = (io: Server, socket: Socket) => {
       const student = await studentService.getStudentBySessionId(data.sessionId);
       
       if (student) {
-        await studentService.updateSocketId(student.id, socket.id);
+        // Add to presence manager (handles multi-tab)
+        presenceManager.addUser(student, socket.id);
+        
         const state = await stateService.getStudentState(student.id, null);
         
         callback?.({
@@ -46,7 +51,8 @@ export const studentHandler = (io: Server, socket: Socket) => {
 
   socket.on('student:leave', async (data, callback) => {
     try {
-      await studentService.setStudentOffline(data.studentId);
+      // Remove from presence manager
+      presenceManager.removeUser(data.studentId);
       io.emit('student:left', { studentId: data.studentId });
       callback?.({ success: true });
     } catch (err: any) {
@@ -56,7 +62,8 @@ export const studentHandler = (io: Server, socket: Socket) => {
 
   socket.on('disconnect', async () => {
     try {
-      await studentService.setStudentOfflineBySocketId(socket.id);
+      // Remove socket from presence (handles multi-tab gracefully)
+      await presenceManager.removeSocket(socket.id);
     } catch (err) {
       console.error('Error on disconnect:', err);
     }

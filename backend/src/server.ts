@@ -8,9 +8,8 @@ import { timerService } from './services/timer.service';
 const httpServer = createServer(app);
 const io = initializeSocket(httpServer);
 
-pool.query('SELECT NOW()')
-  .then(() => console.log('Database connected'))
-  .catch((err) => console.error('Database connection failed:', err.message));
+// Verify database connection on startup
+pool.query('SELECT NOW()').catch((err) => console.error('Database connection failed:', err.message));
 
 timerService.setOnTimerEnd(async (pollId) => {
   const { voteService } = await import('./services/vote.service');
@@ -19,7 +18,7 @@ timerService.setOnTimerEnd(async (pollId) => {
 });
 
 timerService.setOnTimerTick((pollId, remaining) => {
-  io.emit('timer:sync', { pollId, remaining });
+  io.emit('timer:tick', { pollId, remainingTime: remaining });
 });
 
 timerService.restoreTimer().catch(console.error);

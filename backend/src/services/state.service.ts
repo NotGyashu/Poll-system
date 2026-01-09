@@ -2,6 +2,7 @@ import { pollService } from './poll.service';
 import { voteService } from './vote.service';
 import { studentService } from './student.service';
 import { timerService } from './timer.service';
+import { presenceManager } from './presence.service';
 
 export interface CurrentState {
   activePoll: any;
@@ -9,6 +10,7 @@ export interface CurrentState {
   remainingTime: number;
   hasVoted: boolean;
   student: any;
+  selectedOptionId?: string;
 }
 
 export class StateService {
@@ -18,6 +20,7 @@ export class StateService {
     let remainingTime = 0;
     let hasVoted = false;
     let student = null;
+    let selectedOptionId: string | undefined = undefined;
 
     if (sessionId) {
       student = await studentService.getStudentBySessionId(sessionId);
@@ -30,6 +33,11 @@ export class StateService {
       const id = studentId || student?.id;
       if (id) {
         hasVoted = await voteService.hasVoted(activePoll.id, id);
+        // Get the student's vote to restore selected option
+        if (hasVoted) {
+          const vote = await voteService.getStudentVote(activePoll.id, id);
+          selectedOptionId = vote?.option_id;
+        }
       }
     }
 
@@ -39,6 +47,7 @@ export class StateService {
       remainingTime,
       hasVoted,
       student,
+      selectedOptionId,
     };
   }
 
@@ -52,7 +61,8 @@ export class StateService {
       remainingTime = timerService.getRemainingTime();
     }
 
-    const onlineStudents = await studentService.getOnlineStudents();
+    // Use presence manager for real-time online students (socket-based, not DB)
+    const onlineStudents = presenceManager.getOnlineUsers();
     const pollHistory = await pollService.getPollHistory();
 
     return {

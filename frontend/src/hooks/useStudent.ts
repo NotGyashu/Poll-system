@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { getSessionId, saveStudentInfo, getStudentInfo, clearStudentInfo } from '../utils/sessionStorage';
+import { getSessionId } from '../utils/sessionStorage';
 import type { Student } from '../types';
 
 interface UseStudentReturn {
@@ -12,19 +12,14 @@ interface UseStudentReturn {
 
 export const useStudent = (): UseStudentReturn => {
   const [sessionId] = useState(() => getSessionId());
-  const [student, setStudentState] = useState<Student | null>(() => {
-    const saved = getStudentInfo();
-    return saved ? { ...saved } as Student : null;
-  });
+  const [student, setStudentState] = useState<Student | null>(null);
 
   const setStudent = useCallback((newStudent: Student) => {
     setStudentState(newStudent);
-    saveStudentInfo({ id: newStudent.id, name: newStudent.name });
   }, []);
 
   const clearStudent = useCallback(() => {
     setStudentState(null);
-    clearStudentInfo();
   }, []);
 
   return {

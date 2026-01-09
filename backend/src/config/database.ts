@@ -17,10 +17,14 @@ const connectionConfig = process.env.DATABASE_URL
 export const pool = new Pool(connectionConfig);
 
 let isConnected = false;
+let hasLoggedConnection = false;
 
 pool.on('connect', () => {
   isConnected = true;
-  console.log('Database connected');
+  if (!hasLoggedConnection) {
+    hasLoggedConnection = true;
+    console.log('Database connected');
+  }
 });
 
 pool.on('error', (err) => {

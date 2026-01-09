@@ -6,6 +6,7 @@ import { studentHandler } from './student.handler';
 import { chatHandler } from './chat.handler';
 import { isDbConnected } from '../config/database';
 import { studentService } from '../services/student.service';
+import { presenceManager } from '../services/presence.service';
 
 let io: Server;
 
@@ -45,13 +46,16 @@ const wrapHandler = (handler: (...args: any[]) => Promise<void>) => {
 export const initializeSocket = (httpServer: HttpServer): Server => {
   io = new Server(httpServer, {
     cors: {
-      origin: ['http://localhost:3000', 'http://localhost:5173'],
+      origin: ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:5173', 'http://127.0.0.1:3000',process.env.FRONTEND_URL || ''],
       methods: ['GET', 'POST'],
       credentials: true,
     },
     pingTimeout: 60000,
     pingInterval: 25000,
   });
+
+  // Initialize presence manager with Socket.IO instance
+  presenceManager.initialize(io);
 
   io.use((socket, next) => {
     const sessionId = socket.handshake.auth.sessionId;
@@ -101,17 +105,21 @@ export const initializeSocket = (httpServer: HttpServer): Server => {
     // Teacher kick student
     socket.on('student:kick', async (data, callback) => {
       try {
-        const student = await studentService.getStudentById(data.studentId);
-        
-        if (student && student.socket_id) {
-          // notify the kicked student
-          io.to(student.socket_id).emit('student:kicked', {
+        // Get all sockets for this user and notify them
+        const userSockets = presenceManager.getUserSockets(data.studentId);
+        for (const socketId of userSockets) {
+          io.to(socketId).emit('student:kicked', {
             studentId: data.studentId,
             reason: data.reason || 'Removed by teacher',
           });
         }
 
+        // Remove from presence manager
+        presenceManager.removeUser(data.studentId);
+        
+        // Remove from database
         await studentService.removeStudent(data.studentId);
+        
         io.emit('student:removed', { studentId: data.studentId });
         callback?.({ success: true });
       } catch (err: any) {

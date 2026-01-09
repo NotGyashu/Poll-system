@@ -11,9 +11,15 @@ interface UseSocketOptions {
 export const useSocket = (options: UseSocketOptions = {}) => {
   const socketRef = useRef<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(true);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   useEffect(() => {
+    // Don't connect if no role is provided
+    if (!options.role) {
+      return;
+    }
+
+    setIsConnecting(true);
     const socket = io(SOCKET_URL, {
       auth: { sessionId: options.sessionId },
       query: { role: options.role },

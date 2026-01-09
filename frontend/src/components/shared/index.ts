@@ -5,3 +5,6 @@ export { OptionCard } from './OptionCard';
 export { LoadingSpinner } from './LoadingSpinner';
 export { StatusBadge } from './StatusBadge';
 export { ErrorBoundary } from './ErrorBoundary';
+export { IntervueBadge } from './IntervueBadge';
+export { FloatingChatButton } from './FloatingChatButton';
+export { PollCard } from './PollCard';

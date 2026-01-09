@@ -51,6 +51,11 @@ export const SOCKET_EVENTS = {
   STATE_REQUEST: 'state:request',
   TEACHER_STATE: 'teacher:state',
 
+  // Presence events (real-time, socket-based)
+  PRESENCE_PARTICIPANTS_UPDATE: 'presence:participants-update',
+  PRESENCE_USER_ONLINE: 'presence:user-online',
+  PRESENCE_USER_OFFLINE: 'presence:user-offline',
+
   // Chat events
   CHAT_SEND: 'chat:send',
   CHAT_MESSAGE: 'chat:message',

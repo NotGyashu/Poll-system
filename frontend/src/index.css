@@ -10,10 +10,21 @@
   --color-timer-red: #DC2626;
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+.button-gradient{
+  background: linear-gradient(99.18deg, #8F64E1 -46.89%, #1D68BD 223.45%);
+}
+
+.intervue-gradient{
+  background: linear-gradient(90deg, #7565D9 0%, #4D0ACD 100%);
+}
+
+.card-gradient{
+
+border-image-source: linear-gradient(92.24deg, #7765DA -8.5%, #1D68BD 101.3%);
+}
+
+.question-gradient{
+  background: linear-gradient(90deg, #343434 0%, #6E6E6E 100%);
 }
 
 body {

@@ -29,6 +29,9 @@ export const pollHandler = (io: Server, socket: Socket) => {
 
   socket.on('poll:end', async (data, callback) => {
     try {
+      // Emit final timer tick with 0 seconds
+      io.emit('timer:tick', { remainingTime: 0 });
+      
       const poll = await pollService.endPoll(data.pollId);
       timerService.stopTimer();
       

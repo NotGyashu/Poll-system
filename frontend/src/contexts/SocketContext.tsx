@@ -15,10 +15,12 @@ const SocketContext = createContext<SocketContextValue | null>(null);
 
 interface SocketProviderProps {
   children: ReactNode;
+  role?: 'teacher' | 'student';
+  sessionId?: string;
 }
 
-export const SocketProvider = ({ children }: SocketProviderProps) => {
-  const socketValues = useSocket();
+export const SocketProvider = ({ children, role, sessionId }: SocketProviderProps) => {
+  const socketValues = useSocket({ role, sessionId });
 
   return (
     <SocketContext.Provider value={socketValues}>

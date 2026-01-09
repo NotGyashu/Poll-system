@@ -12,16 +12,17 @@ export interface CreateVoteDTO {
   student_id: string;
 }
 
-export interface VoteCount {
+export interface OptionResult {
   option_id: string;
   option_text: string;
-  count: number;
+  vote_count: number;
   percentage: number;
+  is_correct: boolean;
 }
 
 export interface PollResults {
   poll_id: string;
   question: string;
   total_votes: number;
-  votes: VoteCount[];
+  options: OptionResult[];
 }

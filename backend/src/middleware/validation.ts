@@ -13,8 +13,17 @@ export const validatePollCreate = (req: Request, _res: Response, next: NextFunct
   }
 
   for (const opt of options) {
-    if (typeof opt !== 'string' || opt.trim().length === 0) {
-      throw new BadRequestError('All options must be non-empty strings');
+    // Support both string options and object options with text property
+    if (typeof opt === 'string') {
+      if (opt.trim().length === 0) {
+        throw new BadRequestError('All options must be non-empty strings');
+      }
+    } else if (typeof opt === 'object' && opt !== null) {
+      if (typeof opt.text !== 'string' || opt.text.trim().length === 0) {
+        throw new BadRequestError('All options must have non-empty text');
+      }
+    } else {
+      throw new BadRequestError('Invalid option format');
     }
   }
 

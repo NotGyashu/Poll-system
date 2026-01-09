@@ -1,4 +1,4 @@
-import { Button } from '../shared';
+import { Button, IntervueBadge } from '../shared';
 
 interface KickedMessageProps {
   onRejoin: () => void;
@@ -6,21 +6,21 @@ interface KickedMessageProps {
 
 export const KickedMessage = ({ onRejoin }: KickedMessageProps) => {
   return (
-    <div className="min-h-screen bg-bg-light flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md text-center">
-        <div className="text-4xl mb-4">😔</div>
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
+      <div className="w-full max-w-md text-center">
+        <div className="mb-6">
+          <IntervueBadge />
+        </div>
         
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">
-          You've been removed
+        <h1 className="text-3xl font-bold text-gray-800 mb-3">
+          You've been Kicked out!
         </h1>
         
-        <p className="text-gray-600 mb-6">
-          The teacher has removed you from the session.
+        <p className="text-gray-500 mb-8">
+        Looks like the teacher had removed you from the poll system .Please Try again sometime.
         </p>
         
-        <Button onClick={onRejoin} className="w-full" size="lg">
-          Try to Rejoin
-        </Button>
+       
       </div>
     </div>
   );

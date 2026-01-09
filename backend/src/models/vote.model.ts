@@ -1,5 +1,5 @@
 import { query } from '../config/database';
-import { Vote, CreateVoteDTO, VoteCount, PollResults } from '../types/vote.types';
+import { Vote, CreateVoteDTO, OptionResult, PollResults } from '../types/vote.types';
 
 export class VoteModel {
 
@@ -29,30 +29,32 @@ export class VoteModel {
     return result.rows[0] || null;
   }
 
-  static async getVoteCounts(pollId: string): Promise<VoteCount[]> {
+  static async getVoteCounts(pollId: string): Promise<OptionResult[]> {
     const result = await query(
       `SELECT 
         o.id as option_id,
         o.text as option_text,
-        COUNT(v.id)::text as count
+        o.is_correct,
+        COUNT(v.id)::text as vote_count
        FROM options o
        LEFT JOIN votes v ON o.id = v.option_id
        WHERE o.poll_id = $1
-       GROUP BY o.id, o.text, o.display_order
+       GROUP BY o.id, o.text, o.is_correct, o.display_order
        ORDER BY o.display_order`,
       [pollId]
     );
 
     let total = 0;
     for (const row of result.rows) {
-      total += parseInt(row.count, 10);
+      total += parseInt(row.vote_count, 10);
     }
 
     return result.rows.map((row: any) => ({
       option_id: row.option_id,
       option_text: row.option_text,
-      count: parseInt(row.count, 10),
-      percentage: total > 0 ? Math.round((parseInt(row.count, 10) / total) * 100) : 0,
+      vote_count: parseInt(row.vote_count, 10),
+      percentage: total > 0 ? Math.round((parseInt(row.vote_count, 10) / total) * 100) : 0,
+      is_correct: row.is_correct,
     }));
   }
 
@@ -65,18 +67,18 @@ export class VoteModel {
     if (pollResult.rows.length === 0) return null;
 
     const poll = pollResult.rows[0];
-    const votes = await this.getVoteCounts(pollId);
+    const options = await this.getVoteCounts(pollId);
     
     let totalVotes = 0;
-    for (const v of votes) {
-      totalVotes += v.count;
+    for (const opt of options) {
+      totalVotes += opt.vote_count;
     }
 
     return {
       poll_id: poll.id,
       question: poll.question,
       total_votes: totalVotes,
-      votes,
+      options,
     };
   }
 

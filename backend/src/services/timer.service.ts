@@ -35,7 +35,7 @@ export class TimerService {
       intervalId: null,
     };
 
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const elapsed = (Date.now() - startTime) / 1000;
     const remaining = Math.max(0, poll.duration - elapsed);
 
     if (remaining > 0) {
@@ -90,8 +90,9 @@ export class TimerService {
   getRemainingTime(): number {
     if (!this.activeTimer) return 0;
 
-    const elapsed = Math.floor((Date.now() - this.activeTimer.startedAt) / 1000);
-    return Math.max(0, this.activeTimer.duration - elapsed);
+    const elapsed = (Date.now() - this.activeTimer.startedAt) / 1000;
+    const remaining = this.activeTimer.duration - elapsed;
+    return Math.max(0, Math.floor(remaining));
   }
 
   getActivePollId(): string | null {

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useSocketContext, useChatContext, usePollContext } from '../contexts';
-import { PollCreator, LiveResults, StudentList, PollHistory } from '../components/teacher';
+import { useState, useEffect, useRef } from 'react';
+import { useSocketContext, useChatContext, usePollContext, SocketProvider } from '../contexts';
+import { PollCreator, LiveResults, PollHistory } from '../components/teacher';
 import { ChatPanel } from '../components/chat';
 import { LoadingSpinner } from '../components/shared';
 import { pollApi, stateApi } from '../services';
@@ -8,14 +8,14 @@ import { SOCKET_EVENTS } from '../utils/constants';
 import toast from 'react-hot-toast';
 import type { Poll, Student, PollResults, PollWithOptions, ChatMessage } from '../types';
 
-type TeacherScreen = 'loading' | 'create' | 'live' | 'results';
+type TeacherScreen = 'loading' | 'create' | 'live';
 
 interface CreatePollOption {
   text: string;
   isCorrect: boolean;
 }
 
-export const TeacherPage = () => {
+const TeacherPageContent = () => {
   const { socket, isConnected, emit, on, off } = useSocketContext();
   const { messages, addMessage } = useChatContext();
   const { state: pollState, setPoll, setOptions, setResults, clearPoll } = usePollContext();
@@ -25,6 +25,15 @@ export const TeacherPage = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [pollHistory, setPollHistory] = useState<Poll[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [isPollEnded, setIsPollEnded] = useState(false);
+  
+  // Ref to track current poll ID for socket handlers
+  const currentPollIdRef = useRef<string | null>(null);
+  
+  // Keep ref in sync with poll state
+  useEffect(() => {
+    currentPollIdRef.current = pollState.currentPoll?.id || null;
+  }, [pollState.currentPoll]);
 
   // Recover state on mount
   useEffect(() => {
@@ -32,27 +41,32 @@ export const TeacherPage = () => {
       try {
         const state = await stateApi.getTeacherState();
         
+        // Always load online students
+        if (state.onlineStudents) {
+          setStudents(state.onlineStudents);
+        }
+        
         if (state.activePoll) {
           setPoll(state.activePoll);
           setOptions(state.activePoll.options);
           setRemainingTime(state.remainingTime);
           
-          if (state.onlineStudents) {
-            setStudents(state.onlineStudents);
+          // Always set results if available (for both active and completed polls)
+          if (state.results) {
+            setResults(state.results);
           }
           
-          if (state.activePoll.status === 'completed' && state.results) {
-            setResults(state.results);
-            setScreen('results');
-          } else {
-            setScreen('live');
+          // If poll is completed, mark it as ended but stay on live screen
+          if (state.activePoll.status === 'completed') {
+            setIsPollEnded(true);
           }
+          setScreen('live');
         } else {
           setScreen('create');
         }
 
-        // Load poll history
-        const polls = await pollApi.getAll();
+        // Load poll history (only completed polls)
+        const polls = await pollApi.getHistory();
         setPollHistory(polls);
       } catch {
         setScreen('create');
@@ -66,17 +80,30 @@ export const TeacherPage = () => {
   useEffect(() => {
     if (!socket) return;
 
-    const handleStudentJoined = (data: unknown) => {
-      const student = data as Student;
-      setStudents((prev) => {
-        const exists = prev.some((s) => s.id === student.id);
-        if (exists) return prev;
-        return [...prev, student];
-      });
-      toast.success(`${student.name} joined`);
+    // Real-time presence update (primary source of truth)
+    const handleParticipantsUpdate = (data: unknown) => {
+      const payload = data as { count: number; participants: Array<{ id: string; name: string; joinedAt: string }> };
+      setStudents(payload.participants.map(p => ({
+        id: p.id,
+        name: p.name,
+        session_id: '', // Not needed for display
+        is_online: true,
+        created_at: p.joinedAt,
+      })) as Student[]);
     };
 
-    const handleStudentLeft = (data: unknown) => {
+    // User came online notification
+    const handleUserOnline = (data: unknown) => {
+      const payload = data as { id: string; name: string };
+      toast.success(`${payload.name} joined`);
+    };
+
+    // User went offline notification
+    const handleUserOffline = (_data: unknown) => {
+      // Participants are updated via PRESENCE_PARTICIPANTS_UPDATE
+    };
+
+    const handleStudentRemoved = (data: unknown) => {
       const payload = data as { studentId: string };
       setStudents((prev) => prev.filter((s) => s.id !== payload.studentId));
     };
@@ -86,21 +113,27 @@ export const TeacherPage = () => {
       setRemainingTime(payload.remainingTime);
     };
 
-    const handleVoteUpdate = async () => {
-      if (pollState.currentPoll) {
-        try {
-          const results = await pollApi.getResults(pollState.currentPoll.id);
-          setResults(results);
-        } catch {
-          // Ignore errors
-        }
+    const handleVoteUpdate = (data: unknown) => {
+      const payload = data as { pollId: string; results: PollResults };
+      // Use ref to always have the latest poll ID
+      if (currentPollIdRef.current && payload.pollId === currentPollIdRef.current) {
+        setResults(payload.results);
       }
     };
 
-    const handlePollEnded = (data: unknown) => {
+    const handlePollEnded = async (data: unknown) => {
       const payload = data as { results: PollResults };
       setResults(payload.results);
-      setScreen('results');
+      setIsPollEnded(true);
+      // Stay on live screen, just show the "Ask a new question" button
+      
+      // Refresh poll history to include the newly completed poll
+      try {
+        const polls = await pollApi.getHistory();
+        setPollHistory(polls);
+      } catch {
+        // Ignore errors
+      }
     };
 
     const handleNewMessage = (data: unknown) => {
@@ -108,22 +141,27 @@ export const TeacherPage = () => {
       addMessage(message);
     };
 
-    on(SOCKET_EVENTS.STUDENT_JOINED, handleStudentJoined);
-    on(SOCKET_EVENTS.STUDENT_LEFT, handleStudentLeft);
+    // Presence events (real-time, socket-based)
+    on(SOCKET_EVENTS.PRESENCE_PARTICIPANTS_UPDATE, handleParticipantsUpdate);
+    on(SOCKET_EVENTS.PRESENCE_USER_ONLINE, handleUserOnline);
+    on(SOCKET_EVENTS.PRESENCE_USER_OFFLINE, handleUserOffline);
+    on(SOCKET_EVENTS.STUDENT_REMOVED, handleStudentRemoved);
     on(SOCKET_EVENTS.TIMER_TICK, handleTimerTick);
     on(SOCKET_EVENTS.VOTE_UPDATE, handleVoteUpdate);
     on(SOCKET_EVENTS.POLL_ENDED, handlePollEnded);
     on(SOCKET_EVENTS.CHAT_MESSAGE, handleNewMessage);
 
     return () => {
-      off(SOCKET_EVENTS.STUDENT_JOINED, handleStudentJoined);
-      off(SOCKET_EVENTS.STUDENT_LEFT, handleStudentLeft);
+      off(SOCKET_EVENTS.PRESENCE_PARTICIPANTS_UPDATE, handleParticipantsUpdate);
+      off(SOCKET_EVENTS.PRESENCE_USER_ONLINE, handleUserOnline);
+      off(SOCKET_EVENTS.PRESENCE_USER_OFFLINE, handleUserOffline);
+      off(SOCKET_EVENTS.STUDENT_REMOVED, handleStudentRemoved);
       off(SOCKET_EVENTS.TIMER_TICK, handleTimerTick);
       off(SOCKET_EVENTS.VOTE_UPDATE, handleVoteUpdate);
       off(SOCKET_EVENTS.POLL_ENDED, handlePollEnded);
       off(SOCKET_EVENTS.CHAT_MESSAGE, handleNewMessage);
     };
-  }, [socket, on, off, pollState.currentPoll]);
+  }, [socket, on, off, setResults]);
 
   // Join as teacher when connected
   useEffect(() => {
@@ -135,6 +173,7 @@ export const TeacherPage = () => {
   const handleCreatePoll = async (question: string, options: CreatePollOption[], duration: number) => {
     try {
       setIsCreating(true);
+      setIsPollEnded(false);
       
       const pollWithOptions: PollWithOptions = await pollApi.create({
         question,
@@ -175,6 +214,7 @@ export const TeacherPage = () => {
 
   const handleSendMessage = (content: string) => {
     emit(SOCKET_EVENTS.CHAT_SEND, {
+      senderId: 'teacher',
       senderName: 'Teacher',
       senderType: 'teacher',
       content,
@@ -189,7 +229,9 @@ export const TeacherPage = () => {
       setPoll(pollWithOptions);
       setOptions(pollWithOptions.options);
       setResults(results);
-      setScreen('results');
+      setIsPollEnded(true);
+      setRemainingTime(0);
+      setScreen('live');
     } catch {
       toast.error('Failed to load poll results');
     }
@@ -197,6 +239,7 @@ export const TeacherPage = () => {
 
   const handleNewPoll = () => {
     clearPoll();
+    setIsPollEnded(false);
     setScreen('create');
   };
 
@@ -211,120 +254,66 @@ export const TeacherPage = () => {
 
   if (screen === 'create') {
     return (
-      <div className="min-h-screen bg-bg-light p-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
+      <div className="min-h-screen grid py-2 px-4  pl-[10vw]">
+        <div className="">
               <PollCreator onCreatePoll={handleCreatePoll} isLoading={isCreating} />
-            </div>
-            <div className="space-y-6">
-              <StudentList students={students} onKickStudent={handleKickStudent} />
-              <PollHistory polls={pollHistory} onViewResults={handleViewResults} />
-            </div>
-          </div>
         </div>
-        <ChatPanel
+        <div className=''>
+          
+            <PollHistory polls={pollHistory} onViewResults={handleViewResults} />
+  
+          <ChatPanel
           messages={messages}
           currentUserId="teacher"
           onSendMessage={handleSendMessage}
           isConnected={isConnected}
+          participants={students}
+          onKickStudent={handleKickStudent}
+          isTeacher={true}
         />
+        </div>
+        
       </div>
     );
   }
-
+// 
   if (screen === 'live' && pollState.currentPoll) {
     return (
-      <div className="min-h-screen bg-bg-light p-4">
+      <div className="min-h-screen bg-light p-4">
         <div className="max-w-4xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
+        
               <LiveResults
                 poll={pollState.currentPoll}
                 options={pollState.options}
                 results={pollState.results}
                 remainingTime={remainingTime}
                 onEndPoll={handleEndPoll}
+                onNewPoll={isPollEnded ? handleNewPoll : undefined}
+                polls={pollHistory}
+                onViewResults={handleViewResults}
               />
-            </div>
-            <div>
-              <StudentList students={students} onKickStudent={handleKickStudent} />
-            </div>
-          </div>
+          
         </div>
         <ChatPanel
           messages={messages}
           currentUserId="teacher"
           onSendMessage={handleSendMessage}
           isConnected={isConnected}
-        />
-      </div>
-    );
-  }
-
-  if (screen === 'results' && pollState.currentPoll && pollState.results) {
-    return (
-      <div className="min-h-screen bg-bg-light p-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-            <h1 className="text-2xl font-bold text-gray-800 mb-4">Final Results</h1>
-            <p className="text-lg text-gray-700 mb-6">{pollState.currentPoll.question}</p>
-            
-            <div className="space-y-3 mb-6">
-              {pollState.options.map((option) => {
-                const result = pollState.results?.options.find((o) => o.option_id === option.id);
-                const voteCount = result?.vote_count || 0;
-                const totalVotes = pollState.results?.total_votes || 0;
-                const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
-
-                return (
-                  <div
-                    key={option.id}
-                    className={`p-4 rounded-lg border-2 ${
-                      option.is_correct ? 'bg-green-100 border-green-500' : 'bg-white border-gray-200'
-                    }`}
-                  >
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="font-medium">{option.text}</span>
-                      {option.is_correct && <span className="text-green-600">✓ Correct</span>}
-                    </div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>{voteCount} votes</span>
-                      <span>{percentage}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full ${option.is_correct ? 'bg-green-500' : 'bg-primary'}`}
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="text-center mb-6">
-              <span className="text-3xl font-bold text-primary">{pollState.results.total_votes}</span>
-              <span className="text-gray-600 ml-2">total votes</span>
-            </div>
-
-            <button
-              onClick={handleNewPoll}
-              className="w-full py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors"
-            >
-              Create New Poll
-            </button>
-          </div>
-        </div>
-        <ChatPanel
-          messages={messages}
-          currentUserId="teacher"
-          onSendMessage={handleSendMessage}
-          isConnected={isConnected}
+          participants={students}
+          onKickStudent={handleKickStudent}
+          isTeacher={true}
         />
       </div>
     );
   }
 
   return null;
+};
+
+export const TeacherPage = () => {
+  return (
+    <SocketProvider role="teacher">
+      <TeacherPageContent />
+    </SocketProvider>
+  );
 };

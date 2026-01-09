@@ -55,6 +55,7 @@ export interface StudentState {
   remainingTime: number;
   hasVoted: boolean;
   student: Student | null;
+  selectedOptionId?: string;
 }
 
 export interface TeacherState {
